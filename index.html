@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; }
+      #container { max-width: 800px; margin: auto; }
+      h1 { text-align: center; }
+      label { font-weight: bold; }
+      select, textarea { width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; }
+      iframe { width: 100%; height: 450px; border: none; }
+      button { padding: 10px 20px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+      button:hover { background-color: #45a049; }
+      #status { margin-top: 10px; color: green; }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <h1>Ghi chú Video</h1>
+      <label for="date-dropdown">Chọn Ngày:</label>
+      <select id="date-dropdown"></select>
+      
+      <h2>Video YouTube</h2>
+      <iframe id="video-player" src="" allowfullscreen></iframe>
+      
+      <h2>Ghi chú</h2>
+      <textarea id="note-text" rows="10" placeholder="Gõ ghi chú của bạn vào đây..."></textarea>
+      <button id="save-button">Lưu Ghi chú</button>
+      
+      <p id="status"></p>
+    </div>
+    
+    <script>
+      let data = [];
+      const dropdown = document.getElementById('date-dropdown');
+      const videoPlayer = document.getElementById('video-player');
+      const noteText = document.getElementById('note-text');
+      const saveButton = document.getElementById('save-button');
+      const statusMessage = document.getElementById('status');
+      
+      window.onload = function() {
+        google.script.run.withSuccessHandler(function(sheetData) {
+          data = sheetData;
+          populateDropdown();
+          if (data.length > 0) {
+            updateVideo(0); // Cập nhật video ban đầu
+          }
+        }).getDataFromSheet();
+      };
+      
+      function populateDropdown() {
+        dropdown.innerHTML = '';
+        data.forEach((row, index) => {
+          const option = document.createElement('option');
+          option.value = index;
+          option.text = row.date;
+          dropdown.appendChild(option);
+        });
+      }
+      
+      dropdown.addEventListener('change', function() {
+        const selectedIndex = this.value;
+        updateVideo(selectedIndex);
+      });
+      
+      function updateVideo(index) {
+        const videoUrl = data[index].videoUrl;
+        const videoId = videoUrl.match(/(?:v=|youtu\.be\/)([^&?]+)/);
+        if (videoId) {
+            videoPlayer.src = `https://www.youtube.com/embed/${videoId[1]}`;
+        } else {
+            videoPlayer.src = "";
+        }
+      }
+      
+      saveButton.addEventListener('click', function() {
+        const selectedIndex = dropdown.value;
+        const docUrl = data[selectedIndex].docUrl;
+        const noteContent = noteText.value;
+        
+        if (!docUrl) {
+          statusMessage.style.color = 'red';
+          statusMessage.textContent = 'Lỗi: Không tìm thấy đường link Google Docs cho ngày này.';
+          return;
+        }
+        
+        const payload = {
+          docUrl: docUrl,
+          noteText: noteContent
+        };
+        
+        google.script.run.withSuccessHandler(function(message) {
+          statusMessage.style.color = 'green';
+          statusMessage.textContent = message;
+        }).saveNotes(payload);
+      });
+    </script>
+  </body>
+</html>
